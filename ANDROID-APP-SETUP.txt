@@ -1,0 +1,239 @@
+GOVTSETU ANDROID APP — WHAT THIS IS AND HOW TO FINISH SETTING IT UP
+=====================================================================
+
+WHAT YOU'RE GETTING (2 zips)
+-----------------------------
+1. govtsetu-android-app.zip   (this file is inside it)
+   A complete Android app project (built with Capacitor) that wraps your
+   live website in a native app shell. It does NOT contain a copy of your
+   website's HTML/CSS/JS — the app just opens
+   https://deltacoresystems.in/govtexam/ inside itself, the same content
+   your website already shows, so you never have to rebuild the app just
+   because you changed the website. Changing the website changes the app
+   automatically, instantly, for everyone who already installed it.
+
+2. govtexam-android-integration.zip
+   6 small changes to your PHP/website so the app can actually receive
+   push notifications (and 1 brand-new small file, js/capacitor-bridge.js,
+   that only ever runs when the site is opened inside the app — normal
+   website visitors in a regular browser are completely unaffected).
+
+WHY THERE'S NO .APK FILE ATTACHED
+------------------------------------
+Building an Android app requires Google's Android SDK and build tools —
+multi-gigabyte tooling that needs to download from Google's servers. The
+sandboxed environment I write code in doesn't have network access to
+Google's servers, so I can't compile the final .apk file myself here.
+
+Instead of asking you to install Android Studio (a large, technical
+install), I set this project up to build itself automatically and for
+free using GitHub Actions — GitHub's own servers do the compiling. You
+just push this project to a GitHub repository, and a few minutes later a
+finished, ready-to-install .apk is waiting for you to download. No
+Android Studio, no SDK, nothing to install on your own computer.
+
+═══════════════════════════════════════════════════════════════════
+STEP 1 — Put the Android app project on GitHub (~5 minutes)
+═══════════════════════════════════════════════════════════════════
+1. If you don't already have one, create a free account at
+   https://github.com — this does not have to be your personal identity,
+   you can use any name.
+2. Create a new repository (the "+" icon top-right → "New repository").
+   Name it anything, e.g. "govtsetu-android". Recommend making it PUBLIC
+   — see "Is it safe to make this public?" below. Don't initialize it
+   with a README (keep it empty).
+3. Unzip govtsetu-android-app.zip on your computer, then follow GitHub's
+   "push an existing folder" instructions shown on the new repo's page —
+   it's 4 commands (git init, git add, git commit, git push) that GitHub
+   shows you with your exact repo URL already filled in. If you've never
+   used git before, GitHub's page also has a "upload an existing file"
+   drag-and-drop option that works for this too (slower, but needs zero
+   command-line knowledge — just drag the whole unzipped folder's
+   contents in).
+
+Is it safe to make this public?
+   Yes. Nothing in this project is a secret — no database passwords, no
+   API keys, no signing keys (those get added as "secrets" in step 3,
+   which are never visible in the repository itself, even on a public
+   repo). A public repo is what lets the direct-download link in step 4
+   work for any student without needing a GitHub account.
+
+═══════════════════════════════════════════════════════════════════
+STEP 2 — Firebase (for push notifications) — ~10 minutes, one-time
+═══════════════════════════════════════════════════════════════════
+You can skip this step for now if you just want the app working first —
+the app and website work completely normally without it, "today's
+current affairs are ready" / "payment approved" pushes just won't be
+sent until you come back and do this.
+
+1. Go to https://console.firebase.google.com and create a new project
+   (any Google account works, doesn't need to be the same one as Gemini).
+2. Inside the project: click the Android icon to add an Android app.
+   - Android package name: in.deltacoresystems.govtsetu   (must match
+     EXACTLY — this is already set correctly in the app project, don't
+     change it unless you also change it in capacitor.config.ts)
+   - App nickname: GovtSetu (anything, just for your own reference)
+   - Download the google-services.json file it offers you. KEEP THIS —
+     you need it in Step 3 below.
+3. Still in the Firebase project: click the ⚙️ gear icon → "Project
+   settings" → "Service accounts" tab → "Generate new private key". This
+   downloads a SECOND, DIFFERENT json file. KEEP THIS SEPARATELY — you
+   need it for your WEBSERVER, not the app.
+   - Upload this file to your Hostinger server at:
+       config/firebase-service-account.json
+     (same folder as config/config.php — NOT inside uploads/ or anywhere
+     publicly browsable)
+   - This file is sensitive (it lets your server send push notifications
+     as your app) — never put it inside the Android app project or a
+     public GitHub repo.
+
+═══════════════════════════════════════════════════════════════════
+STEP 3 — GitHub secrets, so Actions can build a signed, working APK
+═══════════════════════════════════════════════════════════════════
+In your new GitHub repo: Settings → Secrets and variables → Actions →
+"New repository secret". Add these:
+
+  GOOGLE_SERVICES_JSON_B64
+    (skip this one if you skipped Step 2 for now)
+    The google-services.json from Step 2, base64-encoded. On
+    Mac/Linux/WSL, run this in the folder you downloaded it to:
+      base64 -i google-services.json | tr -d '\n'
+    Copy the entire output as the secret's value. (On Windows without
+    WSL: certutil -encode google-services.json tmp.txt, then open
+    tmp.txt and copy everything between the ---BEGIN--- and ---END---
+    lines, with no line breaks.)
+
+  The 4 secrets below are what let GitHub Actions produce a signed
+  release APK (the kind meant for real distribution) instead of only a
+  debug one. Generate your own signing key — this is standard practice
+  for any Android app and takes one command. You need Java installed to
+  run `keytool` (free, any computer with Java already has it; if not,
+  https://adoptium.net has a free installer):
+
+    keytool -genkeypair -v -keystore govtsetu-release.keystore \
+      -alias govtsetu -keyalg RSA -keysize 2048 -validity 10000
+
+  It'll ask you to make up a keystore password and a key password (write
+  these down somewhere safe — a password manager, not a sticky note. If
+  you ever lose this file or its passwords, you cannot update the app
+  under the same signature ever again; students would have to uninstall
+  the old one and install a new one from scratch).
+
+  ANDROID_KEYSTORE_BASE64
+    base64 -i govtsetu-release.keystore | tr -d '\n'
+    (same base64 approach as above)
+  RELEASE_STORE_PASSWORD   — the keystore password you just chose
+  RELEASE_KEY_ALIAS        — "govtsetu" (or whatever you used after -alias)
+  RELEASE_KEY_PASSWORD     — the key password you just chose
+
+═══════════════════════════════════════════════════════════════════
+STEP 4 — Build it and get the download link
+═══════════════════════════════════════════════════════════════════
+Once the project is pushed to GitHub (Step 1), a build starts
+automatically — check the "Actions" tab of your repo, you'll see it
+running (takes 3–6 minutes). You can also start one manually any time:
+Actions tab → "Build GovtSetu APK" → "Run workflow".
+
+Once it finishes:
+  - If you added the 4 signing secrets (Step 3), go to your repo's
+    "Releases" section (right-hand sidebar on the repo's main page) —
+    there's a release tagged "latest" with govtsetu.apk attached. This
+    link never changes even when you rebuild later, so it's the one to
+    share:
+      https://github.com/<your-username>/<your-repo>/releases/latest/download/govtsetu.apk
+  - Either way (even with zero secrets added), a debug APK is always
+    available under the Actions tab → click the finished run → scroll to
+    "Artifacts" → govtsetu-debug-apk. This one works fine for your own
+    testing but isn't meant for giving to students (debug builds show a
+    small red "debug" banner and aren't optimized).
+
+Put your real release download link into index.html:
+  In govtexam-android-integration.zip, index.html has one line with
+  GOVTSETU_APK_DOWNLOAD_URL as a placeholder (footer → "Android App"
+  column). Replace that placeholder with your real
+  .../releases/latest/download/govtsetu.apk link from above, then
+  re-upload index.html to your server. That's the only link students
+  need — there's no Play Store listing.
+
+═══════════════════════════════════════════════════════════════════
+STEP 5 — Deploy the website-side changes
+═══════════════════════════════════════════════════════════════════
+From govtexam-android-integration.zip, upload/overwrite these into your
+govtexam folder on the server (same paths):
+  index.html                   — adds the download link + loads the
+                                  bridge script (only active inside the app)
+  js/capacitor-bridge.js       — NEW FILE
+  api/push/index.php           — NEW FILE
+  helpers/fcm_sender.php       — NEW FILE
+  cron/daily-govt-news.php     — updated (now also sends a push once a
+                                  fresh Current Affairs batch is ready)
+  api/admin/index.php          — updated (now also sends a push when you
+                                  approve a payment proof)
+  govtexam_schema.sql          — updated for fresh installs only, do NOT
+                                  run against your live DB
+
+Then run migrate_add_push_tokens.sql ONCE on your live database
+(phpMyAdmin → SQL tab) — same safe-to-re-run pattern as your other
+migration files.
+
+═══════════════════════════════════════════════════════════════════
+INSTALLING THE APK ON A PHONE (what to tell students)
+═══════════════════════════════════════════════════════════════════
+Since this isn't on the Play Store, Android shows a one-time warning the
+first time someone installs an app this way:
+  1. Open the download link on the phone (from your website, WhatsApp,
+     wherever you shared it) and download the .apk.
+  2. Tap the downloaded file. Android will say installing from this
+     source isn't allowed yet — tap "Settings" on that prompt, turn on
+     "Allow from this source" for the browser/app used to download it,
+     then go back and tap the file again.
+  3. Tap Install. That's it — this is a standard one-time step for any
+     app installed outside the Play Store, not specific to this app.
+
+═══════════════════════════════════════════════════════════════════
+WHAT WAS TESTED, AND WHAT I COULDN'T TEST HERE
+═══════════════════════════════════════════════════════════════════
+Tested:
+  - php -l on every new/changed PHP file.
+  - node --check on js/capacitor-bridge.js, and that it's correctly
+    gated to do nothing at all outside the app (a plain-browser visitor
+    runs zero of this code).
+  - helpers/fcm_sender.php's OAuth2 + push-sending logic end-to-end
+    against a local fake Google server I built for this: generated a
+    real RSA test keypair, confirmed the JWT my code signs is correctly
+    verified by a server checking the real signature (not just "did it
+    not crash"), confirmed a successful push call, confirmed a push to a
+    dead/uninstalled-app token is correctly detected and that device
+    automatically removed from device_push_tokens, confirmed sending to
+    an inactive exam type correctly reaches nobody, confirmed the whole
+    thing silently does nothing (no crash, no error shown to students or
+    you) when firebase-service-account.json hasn't been uploaded yet.
+  - The Capacitor Android project builds its full native project
+    structure correctly (npx cap add android/sync completed clean,
+    correct package name, 5 plugins detected including push
+    notifications) and the Gradle files parse with no syntax errors.
+  - Generated real app icons and splash screens at every Android
+    density, matching your site's actual logo (the ⚡ mark, same blue→
+    purple gradient as your navbar) since no separate logo file existed
+    to reuse — replace assets/logo-source files and re-run
+    `npx @capacitor/assets generate --android` if you'd rather use
+    something else later.
+  - The GitHub Actions workflow YAML is syntactically valid.
+
+Could NOT test here (no access to the real internet services involved,
+or to the final compiled app itself):
+  - An actual Gradle build producing a real .apk — my sandbox can't reach
+    Google's Android SDK servers to download the build tools. This is
+    exactly why Step 1-4 routes the real build through GitHub Actions,
+    which CAN reach them.
+  - A real Firebase project / real push notification delivered to a real
+    phone — needs your own Firebase account, which I don't have.
+  - Installing and clicking through the actual app on a physical device.
+
+So after you finish Steps 1–5: please actually install the APK on a
+phone and confirm (a) the site loads and login works exactly like the
+website, (b) a notification permission prompt appears, and (c) once
+Firebase is set up, approving a test payment proof (or waiting for the
+7 AM Current Affairs cron) results in a real notification arriving. If
+anything doesn't match what's described here, tell me what happened and
+I'll fix it.

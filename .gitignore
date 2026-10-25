@@ -1,0 +1,17 @@
+node_modules/
+.DS_Store
+
+# Android build output
+android/app/build/
+android/build/
+android/.gradle/
+android/local.properties
+android/captures/
+android/.cxx/
+
+# Secrets — never commit these. CI writes them from GitHub secrets at
+# build time instead (see .github/workflows/build-apk.yml).
+android/app/google-services.json
+android/app/release.keystore
+*.keystore
+*.jks
