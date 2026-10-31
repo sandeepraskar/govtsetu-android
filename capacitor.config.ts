@@ -37,6 +37,15 @@ const config: CapacitorConfig = {
     // phone's normal browser/app instead, which is the behavior students
     // expect.
     allowNavigation: ['deltacoresystems.in', '*.deltacoresystems.in'],
+    // Without this, a failed main-frame load (DNS blip, brief outage,
+    // airplane mode) shows Android's own raw "Web page not available"
+    // error screen instead of the bundled www/index.html fallback below —
+    // that bundled page only gets a chance to run once Capacitor is told
+    // where it lives. "index.html" is relative to webDir (www/), which
+    // `cap sync` copies into the app; Capacitor serves it locally at
+    // https://localhost/index.html and swaps the WebView to it whenever
+    // the live site errors out.
+    errorPath: 'index.html',
   },
   android: {
     allowMixedContent: false,
