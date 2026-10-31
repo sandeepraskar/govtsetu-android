@@ -1,0 +1,71 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+<title>GovtSetu</title>
+<style>
+  html,body{margin:0;height:100%;background:#0f172a;color:#e2e8f0;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;display:flex;align-items:center;justify-content:center;text-align:center}
+  .box{padding:24px}
+  .spinner{width:40px;height:40px;margin:0 auto 18px;border:4px solid #334155;border-top-color:#38bdf8;border-radius:50%;animation:spin 0.9s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  h1{font-size:20px;margin:0 0 6px}
+  p{color:#94a3b8;font-size:14px;margin:0 0 16px}
+  button{background:#38bdf8;color:#0f172a;border:none;border-radius:8px;padding:10px 20px;font-size:14px;font-weight:600;display:none}
+</style>
+</head>
+<body>
+  <div class="box">
+    <div class="spinner" id="sp"></div>
+    <h1>GovtSetu</h1>
+    <p id="msg">Connecting…</p>
+    <button id="retry">Retry</button>
+  </div>
+  <script>
+    // This local page is shown automatically by Capacitor (via
+    // server.errorPath in capacitor.config.ts) whenever the live site
+    // fails to load — a DNS blip, a brief outage, or no signal. It isn't
+    // a dead end: it auto-retries the live site a few times in case the
+    // problem clears up on its own (common for a transient DNS blip),
+    // then falls back to a manual Retry button that sends the WebView
+    // straight back to the live site.
+    var LIVE_SITE = 'https://deltacoresystems.in/govtexam/';
+    var MAX_AUTO_RETRIES = 3;
+    var RETRY_DELAY_MS = 2500;
+    var STORAGE_KEY = 'gsRetryAttempts';
+
+    function goLive() {
+      window.location.href = LIVE_SITE;
+    }
+
+    function showManualRetry(message) {
+      document.getElementById('sp').style.display = 'none';
+      document.getElementById('msg').textContent = message;
+      document.getElementById('retry').style.display = 'inline-block';
+    }
+
+    document.getElementById('retry').onclick = function () {
+      try { sessionStorage.removeItem(STORAGE_KEY); } catch (e) {}
+      goLive();
+    };
+
+    (function () {
+      if (!navigator.onLine) {
+        showManualRetry("You're offline. Connect to the internet and try again.");
+        return;
+      }
+
+      var attempts = 0;
+      try { attempts = parseInt(sessionStorage.getItem(STORAGE_KEY) || '0', 10) || 0; } catch (e) {}
+
+      if (attempts < MAX_AUTO_RETRIES) {
+        try { sessionStorage.setItem(STORAGE_KEY, String(attempts + 1)); } catch (e) {}
+        document.getElementById('msg').textContent = 'Reconnecting…';
+        setTimeout(goLive, RETRY_DELAY_MS);
+      } else {
+        showManualRetry("Couldn't reach GovtSetu. Check your connection and try again.");
+      }
+    })();
+  </script>
+</body>
+</html>
