@@ -19,20 +19,53 @@
     <div class="spinner" id="sp"></div>
     <h1>GovtSetu</h1>
     <p id="msg">Connecting…</p>
-    <button id="retry" onclick="location.reload()">Retry</button>
+    <button id="retry">Retry</button>
   </div>
   <script>
-    // This local page is only ever seen if the live site fails to load
-    // (no internet, or deltacoresystems.in is unreachable). Capacitor's
-    // config points the app straight at the live site normally, so in
-    // everyday use a student never sees this screen.
-    setTimeout(function () {
+    // This local page is shown automatically by Capacitor (via
+    // server.errorPath in capacitor.config.ts) whenever the live site
+    // fails to load — a DNS blip, a brief outage, or no signal. It isn't
+    // a dead end: it auto-retries the live site a few times in case the
+    // problem clears up on its own (common for a transient DNS blip),
+    // then falls back to a manual Retry button that sends the WebView
+    // straight back to the live site.
+    var LIVE_SITE = 'https://deltacoresystems.in/govtexam/';
+    var MAX_AUTO_RETRIES = 3;
+    var RETRY_DELAY_MS = 2500;
+    var STORAGE_KEY = 'gsRetryAttempts';
+
+    function goLive() {
+      window.location.href = LIVE_SITE;
+    }
+
+    function showManualRetry(message) {
       document.getElementById('sp').style.display = 'none';
-      document.getElementById('msg').textContent = navigator.onLine
-        ? "Couldn't reach GovtSetu. Check your connection and try again."
-        : "You're offline. Connect to the internet and try again.";
+      document.getElementById('msg').textContent = message;
       document.getElementById('retry').style.display = 'inline-block';
-    }, 6000);
+    }
+
+    document.getElementById('retry').onclick = function () {
+      try { sessionStorage.removeItem(STORAGE_KEY); } catch (e) {}
+      goLive();
+    };
+
+    (function () {
+      if (!navigator.onLine) {
+        showManualRetry("You're offline. Connect to the internet and try again.");
+        return;
+      }
+
+      var attempts = 0;
+      try { attempts = parseInt(sessionStorage.getItem(STORAGE_KEY) || '0', 10) || 0; } catch (e) {}
+
+      if (attempts < MAX_AUTO_RETRIES) {
+        try { sessionStorage.setItem(STORAGE_KEY, String(attempts + 1)); } catch (e) {}
+        document.getElementById('msg').textContent = 'Reconnecting…';
+        setTimeout(goLive, RETRY_DELAY_MS);
+      } else {
+        showManualRetry("Couldn't reach GovtSetu. Check your connection and try again.");
+      }
+    })();
   </script>
 </body>
 </html>
